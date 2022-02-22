@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, DetailView
-from ads.models import Advert, Location, User, Categories
+from ads.models import Advert, Categories
+from users.models import User, Location
 
 
 class AdvertListView(ListView):
