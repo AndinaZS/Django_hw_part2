@@ -20,5 +20,5 @@ from ads import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('adverts/', views.AdvertListView.as_view()),
-    path('adverts/create', views.AdvertCresteView.as_view())
+    path('adverts/create', views.AdvertCreateView.as_view())
 ]
