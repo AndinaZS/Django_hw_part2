@@ -63,18 +63,11 @@ class AdvertCreateView(CreateView):
 
     def post(self, request, *args, **kwargs):
         advert_data = json.loads(request.body)
-        categories = set()
 
         try:
             author_id = User.objects.get(id=advert_data['author_id'])
         except User.DoesNotExist:
             return JsonResponse({'error': 'author not found'}, status=404)
-
-        for category in advert_data.get('category_id', []):
-            try:
-                categories.add(Categories.objects.get(name=category))
-            except Categories.DoesNotExist:
-                return JsonResponse({'error': f'category {category} not found'}, status=404)
 
         new_advert = Advert.objects.create(
             name=advert_data['name'],
@@ -82,7 +75,12 @@ class AdvertCreateView(CreateView):
             price=advert_data['price'],
             description=advert_data['description'],
         )
-        new_advert.category_id.set(categories)
+
+        for category in advert_data.get('category_id', []):
+            try:
+                new_advert.category_id.add(Categories.objects.get(name=category))
+            except Categories.DoesNotExist:
+                new_advert.category_id.add(Categories.objects.create(name=category))
 
         return JsonResponse({
             'id': new_advert.id,
@@ -106,11 +104,13 @@ class AdvertUpdateView(UpdateView):
         self.object.price = advert_data['price']
         self.object.description = advert_data['description']
 
-        for category in advert_data.get('category_id', []):
-            try:
-                self.object.category_id.add(Categories.objects.get(name=category))
-            except Categories.DoesNotExist:
-                return JsonResponse({'error': f'category {category} not found'})
+        if advert_data.get('category_id', []):
+            self.object.category_id.clear()
+            for category in advert_data.get('category_id'):
+                try:
+                    self.object.category_id.add(Categories.objects.get(name=category))
+                except Categories.DoesNotExist:
+                    self.object.category_id.add(Categories.objects.create(name=category))
 
         self.object.save()
 
