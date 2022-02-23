@@ -1,4 +1,8 @@
+import json
+
 from django.http import JsonResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from ads.models import Advert, Categories
 from users.models import User, Location
@@ -14,22 +18,51 @@ class AdvertListView(ListView):
         for advert in self.object_list:
             response.append(
                 {'name': advert.name,
-                 'author_id': advert.author_id,
+                 'author_id': advert.author_id.id,
                  'price': advert.price,
                  'description': advert.description,
-                 'category_id': advert.category_id,
+                 'categories': advert.category_id.all().values_list('name'),
                  }
             )
 
         return JsonResponse(response, safe=False)
 
 
-class AdvertCreateView(CreateView):
-    pass
-
-
 class AdvertDetailView(DetailView):
     pass
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdvertCreateView(CreateView):
+    model = Advert
+    fields = ['name', 'author_id', 'price', 'description', 'category_id']
+
+    def post(self, request, *args, **kwargs):
+        advert_data = json.loads(request.body)
+        new_advert = Advert.objects.create(
+            name=advert_data['name'],
+            price=advert_data['price'],
+            description=advert_data['description'],
+        )
+        try:
+            new_advert.author_id = User.objects.get(advert_data['author_id'])
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'author not found'}, status=404)
+
+        for category in advert_data.get('category_id', []):
+            try:
+                new_advert.category_id.add(Categories.objects.get(name=category))
+            except Categories.DoesNotExist:
+                return JsonResponse({'error': 'category {category} not found'}, status=404)
+
+        return JsonResponse({
+            'id': new_advert.id,
+            'name': new_advert.name,
+            'price': new_advert.price,
+            'author': new_advert.author_id.username,
+            'categories': new_advert.category_id.all().values_list('name'),
+            }, status=200)
+
 
 
 class AdvertUpdateView(UpdateView):
@@ -61,13 +94,43 @@ class CatDetailView(DetailView):
         return JsonResponse({'name': category.name})
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CatCreateView(CreateView):
-    pass
+    model = Categories
+    fields = ['name']
+
+    def post(self, request, *args, **kwargs):
+        category_data = json.loads(request.body)
+        new_category = Categories.objects.create(
+            name=category_data['name'])
+
+        return JsonResponse({
+            'id': new_category.id,
+            'name': new_category.name}, status=200)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CatUpdateView(UpdateView):
-    pass
+    model = Categories
+    fields = ['name']
 
+    def patch(self, request, *args, **kwargs):
+        super().post(request, *args, **kwargs)
+        category_data = json.loads(request.body)
+        self.object.name = category_data['name']
 
+        self.object.save()
+
+        return JsonResponse({
+            'id': self.object.id,
+            'name': self.object.name}, status=200)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class CatDeleteView(DeleteView):
-    pass
+    model = Categories
+    success_url = '/cat'
+
+    def delete(self, request, *args, **kwargs):
+        super().delete(request, *args, **kwargs)
+
+        return JsonResponse({'status': 'ok'})
