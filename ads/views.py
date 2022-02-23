@@ -1,9 +1,12 @@
 import json
 
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
+
+from HW import settings
 from ads.models import Advert, Categories
 from users.models import User
 
@@ -14,9 +17,15 @@ class AdvertListView(ListView):
     def get(self, request, *args, **kwargs):
         super().get(request, *args, **kwargs)
 
-        response = []
-        for advert in self.object_list:
-            response.append(
+        self.object_list.order_by('name')
+
+        paginator = Paginator(self.object_list, settings.TOTAL_ON_PAGE)
+        page_number = request.GET.get('page')
+        page_list = paginator.get_page(page_number)
+
+        adverts = []
+        for advert in page_list:
+            adverts.append(
                 {'name': advert.name,
                  'author_id': advert.author_id.id,
                  'price': advert.price,
@@ -24,6 +33,10 @@ class AdvertListView(ListView):
                  'categories': list(advert.category_id.all().values_list('name', flat=True)),
                  }
             )
+
+        response = {'items':adverts,
+                    'num_pages': page_list.paginator.num_pages,
+                    'total': page_list.paginator.count}
 
         return JsonResponse(response, safe=False)
 
