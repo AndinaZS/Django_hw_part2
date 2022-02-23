@@ -35,10 +35,10 @@ class AdvertDetailView(DetailView):
         advert = self.get_object()
         return JsonResponse(
             {'name': advert.name,
-            'author': advert.author_id.username,
-            'price': advert.price,
-            'description': advert.description,
-            'categories': list(advert.category_id.all().values_list('name', flat=True)),
+             'author': advert.author_id.username,
+             'price': advert.price,
+             'description': advert.description,
+             'categories': list(advert.category_id.all().values_list('name', flat=True)),
              }
         )
 
@@ -50,25 +50,27 @@ class AdvertCreateView(CreateView):
 
     def post(self, request, *args, **kwargs):
         advert_data = json.loads(request.body)
-        categories = set()
+        cetegories = set()
 
         try:
             author_id = User.objects.get(id=advert_data['author_id'])
         except User.DoesNotExist:
             return JsonResponse({'error': 'author not found'}, status=404)
 
-        new_advert = Advert.objects.create(
-            name=advert_data['name'],
-            author_id = author_id,
-            price=advert_data['price'],
-            description=advert_data['description'],
-            )
-
         for category in advert_data.get('category_id', []):
             try:
-                new_advert.category_id.add(Categories.objects.get(name=category))
+                cetegories.add(Categories.objects.get(name=category))
             except Categories.DoesNotExist:
-                return JsonResponse({'error': 'category {category} not found'}, status=404)
+                return JsonResponse({'error': f'category {category} not found'})
+
+
+        new_advert = Advert.objects.create(
+            name=advert_data['name'],
+            author_id=author_id,
+            price=advert_data['price'],
+            description=advert_data['description'],
+        )
+        new_advert.category_id.set(cetegories)
 
         return JsonResponse({
             'id': new_advert.id,
@@ -76,8 +78,7 @@ class AdvertCreateView(CreateView):
             'price': new_advert.price,
             'author': new_advert.author_id.username,
             'categories': list(new_advert.category_id.all().values_list('name', flat=True)),
-            }, status=200)
-
+        }, status=200)
 
 
 class AdvertUpdateView(UpdateView):
@@ -94,7 +95,9 @@ class AdvertDeleteView(DeleteView):
 
         return JsonResponse({'status': 'ok'})
 
+
 '------------Categories------------'
+
 
 class CatListView(ListView):
     model = Categories
@@ -147,6 +150,7 @@ class CatUpdateView(UpdateView):
         return JsonResponse({
             'id': self.object.id,
             'name': self.object.name}, status=200)
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CatDeleteView(DeleteView):
