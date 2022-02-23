@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 ('price', models.IntegerField()),
                 ('description', models.CharField(max_length=1000, null=True)),
                 ('is_published', models.BooleanField()),
-                ('image', models.ImageField(upload_to='images/')),
+                ('image', models.ImageField(upload_to='media/')),
                 ('author_id', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='users.user')),
                 ('category_id', models.ManyToManyField(to='ads.Categories')),
             ],

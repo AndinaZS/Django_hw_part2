@@ -5,7 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from ads.models import Advert, Categories
-from users.models import User, Location
+from users.models import User
 
 
 class AdvertListView(ListView):
@@ -108,6 +108,22 @@ class AdvertUpdateView(UpdateView):
             'description': self.object.description,
             'categories': list(self.object.category_id.all().values_list('name', flat=True))
         }, status=200)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdvertImageView(UpdateView):
+    model = Advert
+    fields = ['image']
+
+    def patch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.object.image = request.FILES['image']
+        self.object.save()
+        return JsonResponse({
+                'id': self.object.id,
+                'name': self.object.name,
+                'image': self.object.image.url,}, status=201)
+
 
 
 @method_decorator(csrf_exempt, name='dispatch')
