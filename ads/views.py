@@ -21,7 +21,7 @@ class AdvertListView(ListView):
                  'author_id': advert.author_id.id,
                  'price': advert.price,
                  'description': advert.description,
-                 'categories': advert.category_id.all().values_list('name'),
+                 'categories': list(advert.category_id.all().values_list('name', flat=True)),
                  }
             )
 
@@ -29,7 +29,18 @@ class AdvertListView(ListView):
 
 
 class AdvertDetailView(DetailView):
-    pass
+    model = Advert
+
+    def get(self, request, *args, **kwargs):
+        advert = self.get_object()
+        return JsonResponse(
+            {'name': advert.name,
+            'author': advert.author_id.username,
+            'price': advert.price,
+            'description': advert.description,
+            'categories': list(advert.category_id.all().values_list('name', flat=True)),
+             }
+        )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -39,15 +50,19 @@ class AdvertCreateView(CreateView):
 
     def post(self, request, *args, **kwargs):
         advert_data = json.loads(request.body)
-        new_advert = Advert.objects.create(
-            name=advert_data['name'],
-            price=advert_data['price'],
-            description=advert_data['description'],
-        )
+        categories = set()
+
         try:
-            new_advert.author_id = User.objects.get(advert_data['author_id'])
+            author_id = User.objects.get(id=advert_data['author_id'])
         except User.DoesNotExist:
             return JsonResponse({'error': 'author not found'}, status=404)
+
+        new_advert = Advert.objects.create(
+            name=advert_data['name'],
+            author_id = author_id,
+            price=advert_data['price'],
+            description=advert_data['description'],
+            )
 
         for category in advert_data.get('category_id', []):
             try:
@@ -60,7 +75,7 @@ class AdvertCreateView(CreateView):
             'name': new_advert.name,
             'price': new_advert.price,
             'author': new_advert.author_id.username,
-            'categories': new_advert.category_id.all().values_list('name'),
+            'categories': list(new_advert.category_id.all().values_list('name', flat=True)),
             }, status=200)
 
 
@@ -69,9 +84,17 @@ class AdvertUpdateView(UpdateView):
     pass
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class AdvertDeleteView(DeleteView):
-    pass
+    model = Advert
+    success_url = '/ads'
 
+    def delete(self, request, *args, **kwargs):
+        super().delete(request, *args, **kwargs)
+
+        return JsonResponse({'status': 'ok'})
+
+'------------Categories------------'
 
 class CatListView(ListView):
     model = Categories
