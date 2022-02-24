@@ -31,6 +31,7 @@ class AdvertListView(ListView):
                  'author_id': advert.author_id.id,
                  'price': advert.price,
                  'description': advert.description,
+                 'image': advert.image.url,
                  'categories': list(advert.category_id.all().values_list('name', flat=True)),
                  }
             )
@@ -52,6 +53,7 @@ class AdvertDetailView(DetailView):
              'author': advert.author_id.username,
              'price': advert.price,
              'description': advert.description,
+             'image': advert.image.url,
              'categories': list(map(str, advert.category_id.all())),
              }
         )
@@ -85,7 +87,7 @@ class AdvertCreateView(CreateView):
             'name': new_advert.name,
             'price': new_advert.price,
             'author': new_advert.author_id.username,
-            'categories': list(new_advert.category_id.all().values_list('name', flat=True)),
+            'categories': list(map(str, self.object.category_id.all())),
         }, status=201)
 
 
@@ -126,7 +128,7 @@ class AdvertImageView(UpdateView):
     model = Advert
     fields = ['image']
 
-    def patch(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         self.object.image = request.FILES['image']
         self.object.save()
@@ -134,7 +136,7 @@ class AdvertImageView(UpdateView):
         return JsonResponse({
                 'id': self.object.id,
                 'name': self.object.name,
-                'image': self.object.image.url,}, status=201)
+                'image': self.object.image.url}, status=201)
 
 
 

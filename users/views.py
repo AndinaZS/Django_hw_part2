@@ -16,7 +16,7 @@ class UserListView(View):
 
     def get(self, request):
 
-        user_qs = User.objects.filter(advert__is_published=True).annotate(adverts=Count('advert')).order_by('username')
+        user_qs = User.objects.annotate(adverts=Count('advert', filter=Q(advert__is_published=True))).order_by('username')
 
         paginator = Paginator(user_qs, settings.TOTAL_ON_PAGE)
         page_number = request.GET.get('page')
