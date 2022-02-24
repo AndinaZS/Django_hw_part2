@@ -1,25 +1,24 @@
 import json
 
 from django.core.paginator import Paginator
+from django.db.models import Count, Q, F
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
+from django.views.generic import CreateView, DetailView, UpdateView, DeleteView
 
 from HW import settings
-from ads.models import Advert
 from users.models import User, Location
 
 
-class UserListView(ListView):
-    model = User
+class UserListView(View):
 
-    def get(self, request, *args, **kwargs):
-        super().get(request, *args, **kwargs)
+    def get(self, request):
 
-        self.object_list.order_by('username')
+        user_qs = User.objects.filter(advert__is_published=True).annotate(adverts=Count('advert')).order_by('username')
 
-        paginator = Paginator(self.object_list, settings.TOTAL_ON_PAGE)
+        paginator = Paginator(user_qs, settings.TOTAL_ON_PAGE)
         page_number = request.GET.get('page')
         page_list = paginator.get_page(page_number)
 
@@ -33,6 +32,7 @@ class UserListView(ListView):
                  'role': user.role,
                  'age': user.age,
                  'location': user.location_id.name,
+                 'adverts': user.adverts
                  }
             )
 
@@ -63,7 +63,7 @@ class UserDetailView(DetailView):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserCreateView(CreateView):
     model = User
-    fields = ['username', 'password', 'first_name', 'last_name', 'role', 'age', 'location_name', 'lat', 'lng']
+    fields = ['username', 'password', 'first_name', 'last_name', 'role', 'age', 'location', 'lat', 'lng']
 
     def post(self, request, *args, **kwargs):
         user_data = json.loads(request.body)
@@ -77,10 +77,12 @@ class UserCreateView(CreateView):
             age=user_data['age'],
         )
 
-        if user_data['location_name'] and user_data['lat'] and user_data['lng']:
-            new_user.location_id = Location.objects.create(name=user_data['location_name'],
+        if user_data['location'] and user_data['lat'] and user_data['lng']:
+            new_user.location_id = Location.objects.create(name=user_data['location'],
                                                            lat=user_data['lat'],
-                                                           lng=user_data['lng']).id
+                                                           lng=user_data['lng'])
+
+        new_user.save()
 
         return JsonResponse({
             'id': new_user.id,
@@ -90,13 +92,13 @@ class UserCreateView(CreateView):
             'role': new_user.role,
             'age': new_user.age,
             'location': new_user.location_id.name,
-        }, status=200)
+        }, status=201)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UserUpdateView(UpdateView):
     model = User
-    fields = ['username', 'password', 'first_name', 'last_name', 'age', 'location_name', 'lat', 'lng']
+    fields = ['username', 'password', 'first_name', 'last_name', 'age']
 
     def patch(self, request, *args, **kwargs):
         super().post(request, *args, **kwargs)
@@ -108,16 +110,16 @@ class UserUpdateView(UpdateView):
         self.object.last_name = user_data['last_name']
         self.object.age = user_data['age']
 
-        if user_data['location_name'] or user_data['lat'] or user_data['lng']:
+        if user_data['location'] or user_data['lat'] or user_data['lng']:
             try:
                 locaton = Location.objects.get(id=self.object.location_id)
-                locaton.name = user_data.get('location_name', locaton.name)
+                locaton.name = user_data.get('location', locaton.name)
                 locaton.lat = user_data.get('lat', locaton.lat)
                 locaton.lng = user_data.get('lng', locaton.lng)
             except Location.DoesNotExist:
-                self.object.location_id = Location.objects.create(name=user_data['location_name'],
+                self.object.location_id = Location.objects.create(name=user_data['location'],
                                                                   lat=user_data['lat'],
-                                                                  lng=user_data['lng']).id
+                                                                  lng=user_data['lng'])
 
         self.object.save()
 
