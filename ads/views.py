@@ -83,14 +83,14 @@ class AdvertCreateView(CreateView):
             'name': new_advert.name,
             'price': new_advert.price,
             'author': new_advert.author.username,
-            'categories': new_advert.category.name,
+            'category': new_advert.category.name,
         }, status=201)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AdvertUpdateView(UpdateView):
     model = Advert
-    fields = ['name', 'price', 'description', 'category_id']
+    fields = ['name', 'price', 'description', 'category']
 
     def patch(self, request, *args, **kwargs):
         super().post(request, *args, **kwargs)
@@ -108,7 +108,7 @@ class AdvertUpdateView(UpdateView):
             'name': self.object.name,
             'price': self.object.price,
             'description': self.object.description,
-            'categories': self.object.category
+            'category': self.object.category.name
         }, status=201)
 
 
