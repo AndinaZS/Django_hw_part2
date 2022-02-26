@@ -137,7 +137,7 @@ class AdvertDeleteView(DeleteView):
     def delete(self, request, *args, **kwargs):
         super().delete(request, *args, **kwargs)
 
-        return JsonResponse({'status': 'ok'})
+        return JsonResponse({'status': 'ok'}, status=204)
 
 
 '------------Categories------------'
@@ -206,4 +206,4 @@ class CatDeleteView(DeleteView):
     def delete(self, request, *args, **kwargs):
         super().delete(request, *args, **kwargs)
 
-        return JsonResponse({'status': 'ok'})
+        return JsonResponse({'status': 'ok'}, status=204)
