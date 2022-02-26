@@ -1,5 +1,5 @@
 from django.contrib import admin
-from ads.models import Advert, Categories
+from ads.models import Advert, Category
 
 #
 # class AdvertAdmin(admin.ModelAdmin):
@@ -11,4 +11,4 @@ from ads.models import Advert, Categories
 
 
 admin.site.register(Advert)
-admin.site.register(Categories)
+admin.site.register(Category)

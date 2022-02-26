@@ -31,7 +31,7 @@ class UserListView(View):
                  'last_name': user.last_name,
                  'role': user.role,
                  'age': user.age,
-                 'location': user.location_id.name,
+                 'locations': list(map(str, user.locations.all())),
                  'adverts': user.adverts
                  }
             )
@@ -55,7 +55,7 @@ class UserDetailView(DetailView):
              'last_name': user.last_name,
              'role': user.role,
              'age': user.age,
-             'location': user.location_id.name,
+             'locations': list(map(str, user.locations.all())),
              }
         )
 
@@ -63,7 +63,7 @@ class UserDetailView(DetailView):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserCreateView(CreateView):
     model = User
-    fields = ['username', 'password', 'first_name', 'last_name', 'role', 'age', 'location', 'lat', 'lng']
+    fields = ['username', 'password', 'first_name', 'last_name', 'role', 'age', 'locations', 'lat', 'lng']
 
     def post(self, request, *args, **kwargs):
         user_data = json.loads(request.body)
@@ -77,12 +77,11 @@ class UserCreateView(CreateView):
             age=user_data['age'],
         )
 
-        if user_data['location'] and user_data['lat'] and user_data['lng']:
-            new_user.location_id = Location.objects.create(name=user_data['location'],
-                                                           lat=user_data['lat'],
-                                                           lng=user_data['lng'])
-
-        new_user.save()
+        for location in user_data['locations']:
+            location_obj, _ = Location.objects.get_or_create(name=location['name'],
+                                                           lat=location['lat'],
+                                                           lng=location['lng'])
+            new_user.locations.add(location_obj)
 
         return JsonResponse({
             'id': new_user.id,
@@ -91,14 +90,14 @@ class UserCreateView(CreateView):
             'last_name': new_user.last_name,
             'role': new_user.role,
             'age': new_user.age,
-            'location': new_user.location_id.name,
+            'locations': list(map(str, new_user.locations.all())),
         }, status=201)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UserUpdateView(UpdateView):
     model = User
-    fields = ['username', 'password', 'first_name', 'last_name', 'age']
+    fields = ['username', 'password', 'first_name', 'last_name', 'age', 'locations']
 
     def patch(self, request, *args, **kwargs):
         super().post(request, *args, **kwargs)
@@ -110,16 +109,11 @@ class UserUpdateView(UpdateView):
         self.object.last_name = user_data['last_name']
         self.object.age = user_data['age']
 
-        if user_data['location'] or user_data['lat'] or user_data['lng']:
-            try:
-                locaton = Location.objects.get(id=self.object.location_id)
-                locaton.name = user_data.get('location', locaton.name)
-                locaton.lat = user_data.get('lat', locaton.lat)
-                locaton.lng = user_data.get('lng', locaton.lng)
-            except Location.DoesNotExist:
-                self.object.location_id = Location.objects.create(name=user_data['location'],
-                                                                  lat=user_data['lat'],
-                                                                  lng=user_data['lng'])
+        for location in user_data['locations']:
+            location_obj, _ = Location.objects.get_or_create(name=location['name'],
+                                                           lat=location['lat'],
+                                                           lng=location['lng'])
+            self.object.locations.add(location_obj)
 
         self.object.save()
 
@@ -130,7 +124,7 @@ class UserUpdateView(UpdateView):
             'last_name': self.object.last_name,
             'role': self.object.role,
             'age': self.object.age,
-            'location': self.object.location_id.name,
+            'locations': list(map(str, self.object.locations.all())),
         }, status=200)
 
 
@@ -142,4 +136,4 @@ class UserDeleteView(DeleteView):
     def delete(self, request, *args, **kwargs):
         super().delete(request, *args, **kwargs)
 
-        return JsonResponse({'status': 'ok'})
+        return JsonResponse({'status': 'ok'}, status=203)

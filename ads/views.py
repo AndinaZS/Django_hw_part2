@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 
 from HW import settings
-from ads.models import Advert, Categories
+from ads.models import Advert, Category
 from users.models import User
 
 
@@ -18,7 +18,7 @@ class AdvertListView(ListView):
     def get(self, request, *args, **kwargs):
         super().get(request, *args, **kwargs)
 
-        self.object_list = self.object_list.select_related('author_id').prefetch_related('category_id').order_by('price')
+        self.object_list = self.object_list.select_related('author').prefetch_related('category').order_by('price')
 
         paginator = Paginator(self.object_list, settings.TOTAL_ON_PAGE)
         page_number = request.GET.get('page')
@@ -28,11 +28,11 @@ class AdvertListView(ListView):
         for advert in page_list:
             adverts.append(
                 {'name': advert.name,
-                 'author_id': advert.author_id.id,
+                 'author': advert.author.username,
                  'price': advert.price,
                  'description': advert.description,
                  'image': advert.image.url,
-                 'categories': list(advert.category_id.all().values_list('name', flat=True)),
+                 'category': advert.category.name,
                  }
             )
 
@@ -50,11 +50,11 @@ class AdvertDetailView(DetailView):
         advert = self.get_object()
         return JsonResponse(
             {'name': advert.name,
-             'author': advert.author_id.username,
+             'author': advert.author.username,
              'price': advert.price,
              'description': advert.description,
              'image': advert.image.url,
-             'categories': list(map(str, advert.category_id.all())),
+             'category': advert.category.name,
              }
         )
 
@@ -62,32 +62,28 @@ class AdvertDetailView(DetailView):
 @method_decorator(csrf_exempt, name='dispatch')
 class AdvertCreateView(CreateView):
     model = Advert
-    fields = ['name', 'author_id', 'price', 'description', 'category_id']
+    fields = ['name', 'author', 'price', 'description', 'category']
 
     def post(self, request, *args, **kwargs):
         advert_data = json.loads(request.body)
 
-        author_id = get_object_or_404(User, pk=advert_data['author_id'])
+        author = get_object_or_404(User, pk=advert_data['author'])
+        category = get_object_or_404(Category, pk=advert_data['category'])
 
         new_advert = Advert.objects.create(
             name=advert_data['name'],
-            author_id=author_id,
+            author=author,
             price=advert_data['price'],
             description=advert_data['description'],
+            category=category,
         )
-
-        new_advert.save()
-
-        for category in advert_data.get('category_id', []):
-            category_obj = Categories.objects.get_or_create(name=category)
-            new_advert.category_id.add(category_obj)
 
         return JsonResponse({
             'id': new_advert.id,
             'name': new_advert.name,
             'price': new_advert.price,
-            'author': new_advert.author_id.username,
-            'categories': list(map(str, self.object.category_id.all())),
+            'author': new_advert.author.username,
+            'categories': new_advert.category.name,
         }, status=201)
 
 
@@ -103,14 +99,7 @@ class AdvertUpdateView(UpdateView):
         self.object.name = advert_data['name']
         self.object.price = advert_data['price']
         self.object.description = advert_data['description']
-
-        if advert_data.get('category_id', []):
-            self.object.category_id.clear()
-            for category in advert_data.get('category_id'):
-                try:
-                    self.object.category_id.add(Categories.objects.get(name=category))
-                except Categories.DoesNotExist:
-                    self.object.category_id.add(Categories.objects.create(name=category))
+        self.object.category = get_object_or_404(Category, pk=advert_data['category'])
 
         self.object.save()
 
@@ -119,7 +108,7 @@ class AdvertUpdateView(UpdateView):
             'name': self.object.name,
             'price': self.object.price,
             'description': self.object.description,
-            'categories': list(map(str, self.object.category_id.all()))
+            'categories': self.object.category
         }, status=201)
 
 
@@ -155,7 +144,7 @@ class AdvertDeleteView(DeleteView):
 
 
 class CatListView(ListView):
-    model = Categories
+    model = Category
 
     def get(self, request, *args, **kwargs):
         super().get(request, *args, **kwargs)
@@ -170,7 +159,7 @@ class CatListView(ListView):
 
 
 class CatDetailView(DetailView):
-    model = Categories
+    model = Category
 
     def get(self, request, *args, **kwargs):
         category = self.get_object()
@@ -179,12 +168,12 @@ class CatDetailView(DetailView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CatCreateView(CreateView):
-    model = Categories
+    model = Category
     fields = ['name']
 
     def post(self, request, *args, **kwargs):
         category_data = json.loads(request.body)
-        new_category = Categories.objects.create(
+        new_category = Category.objects.create(
             name=category_data['name'])
 
         return JsonResponse({
@@ -194,7 +183,7 @@ class CatCreateView(CreateView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CatUpdateView(UpdateView):
-    model = Categories
+    model = Category
     fields = ['name']
 
     def patch(self, request, *args, **kwargs):
@@ -211,7 +200,7 @@ class CatUpdateView(UpdateView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CatDeleteView(DeleteView):
-    model = Categories
+    model = Category
     success_url = '/cat'
 
     def delete(self, request, *args, **kwargs):

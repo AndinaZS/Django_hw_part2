@@ -2,7 +2,7 @@ from django.db import models
 from users.models import User
 
 
-class Categories(models.Model):
+class Category(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
@@ -15,12 +15,12 @@ class Categories(models.Model):
 
 class Advert(models.Model):
     name = models.CharField(max_length=250)
-    author_id = models.ForeignKey(User, on_delete=models.CASCADE)
-    price = models.IntegerField()
-    description = models.CharField(max_length=1000, null=True)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    price = models.DecimalField(max_digits=11, decimal_places=2)
+    description = models.TextField(max_length=1000, null=True)
     is_published = models.BooleanField(default=False)
     image = models.ImageField(upload_to='images/', null=True)
-    category_id = models.ManyToManyField(Categories)
+    category = models.ForeignKey(Category, null=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return self.name
